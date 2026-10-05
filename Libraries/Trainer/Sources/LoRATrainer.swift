@@ -958,10 +958,11 @@ public struct LoRATrainer {
           let conditioning = concat(inputs: hiddenStates[0], Array(hiddenStates.dropFirst()))[0]
             .as(of: FloatType.self)
           let tokenLength = input.tokenLength
-          let packedConditioning = conditioning[
-            0..<1, promptPrefixLength..<(promptPrefixLength + tokenLength),
-            0..<(2_560 * hiddenStates.count)
-          ].contiguous()
+          let featureLength = 2_560 * hiddenStates.count
+          var packedConditioning = graph.variable(
+            .GPU(0), .HWC(1, tokenLength, featureLength), of: FloatType.self)
+          packedConditioning[0..<1, 0..<tokenLength, 0..<featureLength] = conditioning[
+            0..<1, promptPrefixLength..<(promptPrefixLength + tokenLength), 0..<featureLength]
           let textAdapter: Model
           if let cachedTextAdapter = textAdapters[tokenLength] {
             textAdapter = cachedTextAdapter

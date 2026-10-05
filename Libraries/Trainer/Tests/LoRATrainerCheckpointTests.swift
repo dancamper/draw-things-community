@@ -5,6 +5,31 @@ import Trainer
 import XCTest
 
 final class LoRATrainerCheckpointTests: XCTestCase {
+  func testKrea2TextFusionAdapterRequiresMaterializedPackedConditioning() {
+    let graph = DynamicGraph()
+    let paddedTextLength = 64
+    let promptPrefixLength = 34
+    let tokenLength = 8
+    let featureLength = 2_560 * 12
+    let conditioning = graph.variable(
+      .GPU(0), .HWC(1, paddedTextLength, featureLength), of: Float16.self)
+    let slice = conditioning[
+      0..<1, promptPrefixLength..<(promptPrefixLength + tokenLength), 0..<featureLength]
+
+    XCTAssertTrue(slice.rawValue.isTensorView)
+    XCTAssertTrue(slice.isContiguous)
+    let contiguous = slice.contiguous()
+    XCTAssertTrue(contiguous.rawValue.isTensorView)
+
+    let materialized = contiguous.copied()
+    XCTAssertFalse(materialized.rawValue.isTensorView)
+    let adapter = Krea2TextFusionAdapter(
+      batchSize: 1, textLength: (0, tokenLength), usesFlashAttention: .none
+    ).1
+    adapter.compile(inputs: materialized)
+    let _ = adapter(inputs: materialized)
+  }
+
   func testKrea2SessionSavesLoRAWeightsAndResumeStep() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
