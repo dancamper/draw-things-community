@@ -30,6 +30,28 @@ private final class TestToolAccountProvider: ToolAccountProvider {
 
 final class DrawThingsCLIInvocationTests: XCTestCase {
 
+  func testLoRACheckpointUsesPreferredModelsDirectoryWhenWritable() throws {
+    try withContext { context, directory, _ in
+      let preferred = directory.appendingPathComponent("Models/test_1_lora_f32.ckpt").path
+      XCTAssertEqual(
+        loraCheckpointOutputPath(
+          filename: "test_1_lora_f32.ckpt", preferredOutputPath: preferred, context: context,
+          isWritableDirectory: { _ in true }),
+        preferred)
+    }
+  }
+
+  func testLoRACheckpointFallsBackToWorkingDirectoryWhenModelsDirectoryIsNotWritable() throws {
+    try withContext { context, directory, _ in
+      let preferred = directory.appendingPathComponent("Models/test_1_lora_f32.ckpt").path
+      XCTAssertEqual(
+        loraCheckpointOutputPath(
+          filename: "test_1_lora_f32.ckpt", preferredOutputPath: preferred, context: context,
+          isWritableDirectory: { _ in false }),
+        directory.appendingPathComponent("test_1_lora_f32.ckpt").path)
+    }
+  }
+
   private func withContext(
     accountProvider: ToolAccountProvider? = nil,
     resolveModelsDirectory: ((URL?, @escaping (Result<URL, Error>) -> Void) -> Void)? = nil,

@@ -4033,6 +4033,7 @@ private func runLoRATraining(context: DrawThingsCLIContext, _ options: LoRATrain
   }
   let startTime = Date()
   var lastStep = 0
+  var lastCheckpointPath: String?
   let triggerWord = config.triggerWord ?? ""
 
   let resumingLoRAFile: (String, Int)? = {
@@ -4079,8 +4080,15 @@ private func runLoRATraining(context: DrawThingsCLIContext, _ options: LoRATrain
         step == trainingSteps || (saveEvery > 0 && step > 0 && step % saveEvery == 0)
       if shouldSave {
         let filename = "\(output)_\(step)_lora_f32.ckpt"
-        let outputPath = LoRAZoo.filePathForModelDownloaded(filename)
+        let preferredOutputPath = LoRAZoo.filePathForModelDownloaded(filename)
+        let outputPath = loraCheckpointOutputPath(
+          filename: filename, preferredOutputPath: preferredOutputPath, context: context)
+        if outputPath != preferredOutputPath {
+          context.print(
+            "[LoRA] Models directory is not writable; saving checkpoint to: \(outputPath)")
+        }
         checkpoint.makeLoRA(to: outputPath, scale: loraScale)
+        lastCheckpointPath = outputPath
         let specification = LoRAZoo.Specification(
           name: "\(name) (\(step))", file: filename, prefix: triggerWord, version: trainer.version)
         if Thread.isMainThread {
@@ -4100,7 +4108,16 @@ private func runLoRATraining(context: DrawThingsCLIContext, _ options: LoRATrain
   try context.checkCancellation()
   let totalTime = Date().timeIntervalSince(startTime)
   context.print("Training complete in \(String(format: "%.1f", totalTime))s.")
-  context.print("Final checkpoint: \(output)_\(lastStep)_lora_f32.ckpt")
+  context.print("Final checkpoint: \(lastCheckpointPath ?? "\(output)_\(lastStep)_lora_f32.ckpt")")
+}
+
+func loraCheckpointOutputPath(
+  filename: String, preferredOutputPath: String, context: DrawThingsCLIContext,
+  isWritableDirectory: (String) -> Bool = FileManager.default.isWritableFile(atPath:)
+) -> String {
+  let preferredDirectory = URL(fileURLWithPath: preferredOutputPath).deletingLastPathComponent().path
+  guard isWritableDirectory(preferredDirectory) else { return context.path(filename) }
+  return preferredOutputPath
 }
 
 private protocol DrawThingsCLICommand: ParsableCommand {
