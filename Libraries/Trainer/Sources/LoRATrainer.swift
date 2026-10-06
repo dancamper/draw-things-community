@@ -3952,7 +3952,6 @@ public struct LoRATrainer {
       DynamicGraph.queueWatermark = queueWatermark
     }
     DynamicGraph.setSeed(seed)
-    var dataFrame = dataFrame
     // Krea 2 i8x recomputation becomes non-finite after the first LoRA update.
     let configuration = LoRANetworkConfiguration(
       rank: rankOfLoRA, scale: scaleOfLoRA, highPrecision: true, testing: false,
@@ -4090,8 +4089,8 @@ public struct LoRATrainer {
     var ditEMALowerBoundWeights = [String: Tensor<Float>]()
     var ditEMAUpperBoundWeights = [String: Tensor<Float>]()
     while i < trainingSteps && !stopped {
-      dataFrame.shuffle()
-      for value in dataFrame["0", "imagePath"] {
+      let samples = shuffledLoRATrainingSamples(dataFrame["0", "imagePath"], using: &sfmt)
+      for value in samples {
         guard let input = value[0] as? ProcessedInput, let imagePath = value[1] as? String else {
           continue
         }
