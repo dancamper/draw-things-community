@@ -12,7 +12,7 @@ let package = Package(
   ],
   dependencies: [
     .package(
-      url: "https://github.com/dancamper/ccv.git", revision: "da7be29b8ba5a076082ce21d09900dadc686fcd6"
+      url: "https://github.com/dancamper/ccv.git", revision: "b405844aaf6b977883b3a4f0f6d5edeba3322a65"
     ),
     .package(
       url: "https://github.com/dancamper/s4nnc.git",
